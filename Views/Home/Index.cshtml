@@ -1,0 +1,166 @@
+﻿@{ ViewData["Title"] = "VueProduct Demo"; }
+
+<div id="app">
+    <h2>ProductVue 1.0</h2>
+    <hr />
+
+    <a href="#" class="btn btn-success" v-on:click="showModal"> New ...</a>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Name</th>
+                <th>Description</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tr v-for="(Product,index) in Products">
+            <td>{{index+1}}</td>
+            <td>{{Product.name}}</td>
+            <td>{{Product.description}}</td>
+            <td>
+                <a href="#" class="btn btn-danger" v-on:click="removeProduct(Product,index)">Remove</a>
+                <a href="#" class="btn btn-primary" v-on:click="editProduct(Product,index)">Edit</a>
+            </td>
+        </tr>
+    </table>
+    <partial name="_modals" />
+
+</div>
+@section Scripts{
+
+    <script src="~/lib/vue/vue.min.js"></script>
+
+    <script>var app = new Vue({
+            el: "#app",
+            data: {
+                Products: [], 
+                errors:[],
+                name: "",
+                description: "",
+                editItemIndex: null,
+                editItemId: null
+            },
+            created: function () {
+                this.getProducts();
+            },
+            methods: {
+                clearData: function () {
+                    var vm = this;                    
+                    vm.name = "";
+                    vm.description = "";
+                    vm.editItemIndex = null;
+                    vm.editItemId = null;
+                    vm.errors = [];
+                },
+                checkForm: function () {
+                    this.errors = [];
+                    if (this.name && this.description) {                                               
+                        return true;
+                    }
+
+                    this.errors = [];
+
+                    if (!this.name) {
+                        this.errors.push('Name required.');
+                    }
+                    if (!this.description) {
+                        this.errors.push('Description required.');
+                    }
+
+                    return false;
+                },
+
+                editProduct: function (item, index) {
+                    this.errors = [];
+                    this.name = item.name;
+                    this.description = item.description;
+                    editItemIndex = index;
+                    editItemId = item.id;
+                    
+                    $('#editProductModal').modal('show');
+                },
+
+                editProductConfirm: function (item) {
+                    var vm = this;
+                    var err = vm.checkForm();
+                    if (err) {
+                        var newProduct = {
+                            id: editItemId,
+                            name: vm.name,
+                            description: vm.description
+                        }
+
+                        $.ajax({ url: "/Product", data: newProduct, method: "PUT" })
+                            .done(function () {
+                                vm.Products[editItemIndex].id = editItemId;
+                                vm.Products[editItemIndex].name = vm.name;
+                                vm.Products[editItemIndex].description = vm.description;
+                                toastr.success("Product updated.");
+                            }).fail(function () {
+                                toastr.error("Can not update this Product.");
+                            }).always(function () {
+                                vm.clearData();
+                            });
+
+                        $('#editProductModal').modal('hide');
+                    }
+                },
+                removeProduct: function (item, index) {
+                    var vm = this;
+
+                    var ProductToDelete = {
+                        id: item.id
+                    }
+
+                    $.ajax({ url: "/Product", data: ProductToDelete, method: "DELETE" })
+                        .done(function (data) {
+                            vm.Products.splice(index, 1);
+                            toastr.success("Product removed");
+                        }).fail(function () {
+                            toastr.error("Can not remove this Product!");
+                        });
+                },
+
+                addProduct: function () {                        
+                    var vm = this;
+                    vm.errors = [];
+                    var err = vm.checkForm();
+                    if (err) {                        
+                        var newProduct = {
+                            name: vm.name,
+                            description: vm.description
+                        }
+
+                        $.ajax({ url: "/Product", data: newProduct, method: "POST" })
+                            .done(function (data) {
+                                vm.Products.splice(0, 0, data);
+                                toastr.success("New Product added.");
+                            }).fail(function () {
+                                toastr.error("Can not add new Product!");
+                            }).always(function () {
+                                vm.clearData();
+                            });
+
+                        $('#newProductModal').modal('hide');
+                    }
+
+                },
+                getProducts: function () {
+                    var vm = this;
+                    $.ajax({ url: "/Product", method: "GET" })
+                        .done(function (data) {
+                            vm.Products = data;
+                            toastr.success("All Products loaded.");
+                        }).fail(function () {
+                            toastr.error("Can not load Products!");
+                        });
+                },
+                showModal: function () {
+                    var vm = this;
+                    vm.clearData();
+                    $('#newProductModal').modal('show');
+                }
+            }
+        });</script>
+}
